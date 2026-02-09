@@ -1,0 +1,12 @@
+{
+  "name": "personas",
+  "description": "Manage multiple Claude Code personas with isolated accounts and configurations. Create, switch, login, logout, and delete personas to seamlessly work across different identities.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Jeonhui"
+  },
+  "homepage": "https://github.com/Jeonhui/claude-code-personas",
+  "repository": "https://github.com/Jeonhui/claude-code-personas",
+  "license": "MIT",
+  "keywords": ["persona", "account", "switch", "credentials", "multi-account"]
+}

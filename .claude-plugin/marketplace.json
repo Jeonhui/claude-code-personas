@@ -1,0 +1,20 @@
+{
+  "name": "claude-code-personas",
+  "owner": {
+    "name": "Jeonhui"
+  },
+  "metadata": {
+    "description": "Manage multiple Claude Code personas with isolated accounts and configurations",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "personas",
+      "source": "./plugins/personas",
+      "description": "Manage multiple Claude Code personas — switch between accounts, credentials, and settings seamlessly",
+      "version": "1.0.0",
+      "keywords": ["persona", "account", "switch", "credentials", "multi-account"],
+      "category": "configuration"
+    }
+  ]
+}
