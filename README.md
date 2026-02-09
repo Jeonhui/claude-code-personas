@@ -1,231 +1,172 @@
 # 🎭 Claude Code Personas
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-purple)
 
-A **[Claude Code plugin](https://code.claude.com/docs/plugins)** for managing multiple personas — switch between accounts, credentials, and settings seamlessly.
+> **"Seamlessly manage multiple identities in Claude Code."**
+
+**Claude Code Personas** is a powerful plugin that lets you switch between different Claude accounts, credentials, and settings instantly. Perfect for developers who juggle work, personal, and project-specific environments.
 
 ---
 
-## 🚀 How It Works
+## ✨ Features
 
-**Claude Code** stores session and auth data in `~/.claude`. This plugin isolates each persona into its own directory under `~/.claude-profiles/` and manages the active persona by swapping a symbolic link at `~/.claude`.
-
-```
-~/.claude-profiles/
-├── default/          # 🏠 Migrated from original ~/.claude
-├── work/             # 🏢 Work account
-└── personal/         # 👤 Personal account
-
-~/.claude -> ~/.claude-profiles/work   (symlink to active persona)
-```
-
-**Atomic Switching**: When you switch personas, the plugin atomically replaces the `~/.claude` symlink to point to the target directory. Each persona is fully isolated — its own auth tokens, settings, and session data.
-
-### 🔐 Account Switching (macOS)
-
-Claude Code stores OAuth credentials in the **macOS Keychain** (`Claude Code-credentials` service). This plugin backs up and restores Keychain credentials per persona, so switching personas also switches the logged-in account.
-
-1.  **Switch** `work` → backup current credentials → swap symlink → restore `work` credentials
-2.  **Login** `work` → switch to `work` → clear credentials → run `claude` to OAuth login
-3.  **Logout** → clear credentials from Keychain and saved file
+- **Isolated Environments**: Each persona has its own `~/.claude` directory.
+- **Atomic Switching**: Switch profiles instantly and safely without breaking your setup.
+- **Keychain Integration**: Automatically backup and restore OAuth credentials on macOS.
+- **Zero Configuration**: Works out of the box with intelligent defaults.
+- **Team Friendly**: Easy to distribute via marketplace settings.
 
 ---
 
 ## 📦 Installation
 
-### From Marketplace
-
-Add the marketplace and install the plugin:
+### 1️⃣ Add Marketplace
 
 ```bash
 /plugin marketplace add Jeonhui/claude-code-personas
+```
+
+### 2️⃣ Install Plugin
+
+```bash
 /plugin install personas@claude-code-personas
-```
-
-### Local Development
-
-Clone the repository, build, and load directly:
-
-```bash
-git clone https://github.com/Jeonhui/claude-code-personas.git
-cd claude-code-personas/plugins/personas
-npm install && npm run build
-```
-
-```bash
-claude --plugin-dir ./plugins/personas
 ```
 
 ---
 
-## 🛠 Usage
+## 🛠️ Usage
 
-After installation, the following skills are available inside Claude Code:
+### Quick Start
 
-| Skill | Description |
-| :--- | :--- |
-| `/personas:list` | 📋 List all personas with auth status |
-| `/personas:create <name>` | ➕ Create a new isolated persona |
-| `/personas:switch <name>` | 🔄 Switch the active persona (swaps symlink and credentials) |
-| `/personas:delete <name>` | 🗑️ Delete a persona (cannot delete the active one) |
-| `/personas:status` | ℹ️ Show current persona status with auth info |
-| `/personas:login [name]` | 🔑 Login to a persona (creates if needed, clears auth for fresh OAuth) |
-| `/personas:logout` | 🚪 Logout from the current persona (clears credentials) |
-
-### ⚡ Quick Start
+Create and switch to a work profile in seconds:
 
 ```bash
 /personas:create work
 /personas:switch work
 ```
+*(Restart Claude Code after switching for changes to take full effect)*
 
-> **Note:** Restart Claude Code after switching personas for changes to take full effect.
+### 🎮 Commands
 
-### 👥 Multi-Account Setup
+| Command | Description |
+| :--- | :--- |
+| `/personas:list` | 📋 List all available personas & status |
+| `/personas:create <name>` | ➕ Create a new isolated persona |
+| `/personas:switch <name>` | 🔄 Switch active persona & credentials |
+| `/personas:login [name]` | � Login/Create & Clear auth for new flow |
+| `/personas:status` | ℹ️ Show current persona info |
+| `/personas:logout` | 🚪 Logout & clear credentials |
+| `/personas:delete <name>` | 🗑️ Delete an inactive persona |
 
-To set up multiple accounts:
+### 👥 Multi-Account Workflow
 
-1.  **Login to Work:**
-    ```bash
-    /personas:login work
-    ```
-    *Creates `work` persona, switches to it, and clears credentials. Run `claude` to complete OAuth login.*
-
-2.  **Login to Personal:**
-    ```bash
-    /personas:login personal
-    ```
-    *Repeat for your personal account.*
-
-3.  **Switch Between Accounts:**
-    ```bash
-    /personas:switch work       # Restores work account credentials
-    /personas:switch personal   # Restores personal account credentials
-    ```
-
-4.  **Check Status:**
-    ```bash
-    /personas:list
-    ```
-    ```
-    ▸ work (active) — pro ✓ — last used just now
-      personal — authenticated ✓ — last used 2h ago
-    ```
-
-### 💻 Standalone CLI
-
-The plugin also works as a standalone CLI tool:
-
+**Step 1: Setup Work Account**
 ```bash
-cd plugins/personas
-npm link
+/personas:login work
+# Follow the OAuth flow to log in
+```
 
-claude-profile create work
-claude-profile login work
-claude-profile switch personal
-claude-profile list
-claude-profile status
-claude-profile logout
-claude-profile delete personal
+**Step 2: Setup Personal Account**
+```bash
+/personas:login personal
+# Follow the OAuth flow to log in
+```
+
+**Step 3: Switch Contexts**
+```bash
+/personas:switch work       # 🏢 Ready for business
+/personas:switch personal   # 🏠 Ready for side projects
 ```
 
 ---
 
-## 🔄 First-Time Migration
+## 💻 Standalone CLI
 
-When you first create or switch a persona, the plugin automatically detects if `~/.claude` is a real directory (not yet managed). It will:
+Prefer the terminal? Use the CLI directly:
 
-1.  Move the existing `~/.claude` to `~/.claude-profiles/default/`
-2.  Create a symlink `~/.claude -> ~/.claude-profiles/default/`
-3.  Continue with the requested operation
+```bash
+# Install globally or link
+cd plugins/personas && npm link
 
-Your existing configuration is preserved as the `default` persona.
+# Use anywhere
+claude-profile create work
+claude-profile switch personal
+```
+
+---
+
+## 🚀 How It Works
+
+This plugin manages your `~/.claude` directory by symlinking it to specific profiles under `~/.claude-profiles/`.
+
+```mermaid
+graph LR
+    A[~/.claude] -->|Symlink| B[~/.claude-profiles/work]
+    A -->|Symlink| C[~/.claude-profiles/personal]
+    B --> D{Work Credentials}
+    C --> E{Personal Credentials}
+```
+
+When you switch personas:
+1.  **Backup**: Current credentials are saved to the profile.
+2.  **Swap**: The symlink is atomically updated.
+3.  **Restore**: Target credentials are loaded into the Keychain.
+
+### Sequence Diagram: Switch Command
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI
+    participant Manager
+    participant Keychain
+    participant FileSystem
+
+    User->>CLI: switch work
+    CLI->>Manager: switch(work)
+    
+    Manager->>Keychain: read creds
+    Keychain-->>Manager: json string (current)
+    
+    Manager->>FileSystem: save to default/
+    
+    Manager->>FileSystem: swap symlink
+    
+    FileSystem-->>Manager: read work/.credentials
+    
+    Manager->>Keychain: write creds
+    
+    Manager-->>CLI: done
+    CLI-->>User: ✓ Switched
+```
 
 ---
 
 ## 📂 Project Structure
 
 ```
-claude-code-personas/
-├── .claude-plugin/
-│   └── marketplace.json              # Marketplace catalog
-├── plugins/
-│   └── personas/                     # Plugin root
-│       ├── .claude-plugin/
-│       │   └── plugin.json           # Plugin manifest
-│       ├── skills/                   # Claude Code skills
-│       ├── hooks/
-│       │   └── hooks.json            # SessionStart hook
-│       ├── src/                      # TypeScript source
-│       │   ├── index.ts              # CLI entry point
-│       │   ├── manager.ts            # ProfileManager class
-│       │   └── utils/
-│       │       ├── fs.ts             # Filesystem utilities
-│       │       └── keychain.ts       # macOS Keychain utilities
-│       ├── dist/                     # Compiled output
-│       ├── package.json
-│       └── tsconfig.json
-└── .gitignore
+~/.claude-profiles/
+├── default/          # 🏠 Original config
+├── work/             # 🏢 Work profile
+└── personal/         # 👤 Personal profile
 ```
 
-### Key Source Files
+### Source Overview
 
 | File | Role |
 | :--- | :--- |
-| `src/utils/fs.ts` | 📂 **Filesystem**: Symlink creation, directory management, secure JSON I/O (`0o700`) |
-| `src/utils/keychain.ts` | 🔐 **Keychain**: Read, write, delete credentials via `security` CLI |
-| `src/manager.ts` | ⚙️ **Manager**: Core logic for profiles, switching, and credential backups |
-| `src/index.ts` | 🖥️ **CLI**: Interface using `commander` with colored output |
+| `src/manager.ts` | ⚙️ Core logic for profile management |
+| `src/utils/fs.ts` | � Secure filesystem operations |
+| `src/utils/keychain.ts` | 🔐 macOS Keychain integration |
 
 ---
 
-## 🛡️ Security
+## 🤝 Contributing
 
-- **Permissions**: Profile directories use `0o700` (owner-only).
-- **Credentials**: Stored files use `0o600` (owner-only read/write).
-- **Atomic Swaps**: Symlinks are replaced via temp-link + rename to avoid breakage.
-- **Validation**: Persona names are restricted to alphanumeric, hyphens, and underscores.
-- **Keychain**: Uses macOS `security` CLI with scoped service names.
-
----
-
-## 🎣 Hooks
-
-The plugin includes a **SessionStart** hook that displays the currently active persona when Claude Code starts a new session.
-
----
-
-## 📋 Requirements
-
-- **Node.js**: >= 18.0.0
-- **Claude Code**: >= 1.0.33
-- **OS**: macOS (Required for Keychain-based account switching)
-
----
-
-## 🏢 Team Distribution
-
-To make this plugin available for your team automatically, add the marketplace to your project's `.claude/settings.json`:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "claude-code-personas": {
-      "source": {
-        "source": "github",
-        "repo": "Jeonhui/claude-code-personas"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "personas@claude-code-personas": true
-  }
-}
-```
-
----
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
-MIT
+[MIT](LICENSE) © [Jeonhui](https://github.com/Jeonhui)

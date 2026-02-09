@@ -1,155 +1,175 @@
-# Credential Switching — Operational Logic
+# 🔐 Credential Switching — Operational Logic
 
-This document explains the architecture for switching Claude Code login accounts simultaneously when switching profiles.
+![macOS](https://img.shields.io/badge/os-macOS-black?logo=apple)
+![Security](https://img.shields.io/badge/security-Keychain-blue)
 
-## Background
+> **"How Claude Code Personas manages authentication across multiple accounts."**
+
+This document explains the technical architecture for switching Claude Code login identities simultaneously when switching profiles.
+
+---
+
+## 🧐 Background
 
 Claude Code stores its state in two primary locations:
 
-| Storage | Content | Path |
+| Storage | Content | Path / Service |
 | :--- | :--- | :--- |
-| **Filesystem** | Config, sessions, project data | ~/.claude/ |
-| **macOS Keychain** | OAuth credentials (access tokens, etc.) | Service: Claude Code-credentials |
+| **Filesystem** 📂 | Config, sessions, project data | `~/.claude/` |
+| **macOS Keychain** 🔑 | OAuth credentials (tokens) | Service: `Claude Code-credentials` |
 
-Previous versions of the profile manager only swapped the ~/.claude symbolic link. This caused an issue where switching profiles did not change the actual logged-in account because the authentication data remained persisted in the Keychain.
+**The Problem:** Previous methods only swapped the `~/.claude` directory. Since authentication data persists in the Keychain, switching profiles didn't actually change the logged-in user.
 
-## Solution Architecture
+---
 
-To solve this, each profile directory now includes a .credentials.json file to backup and restore Keychain authentication data.
+## 🏗️ Solution Architecture
 
-``;text
+To solve this, each profile directory acts as a vault, containing both configuration and a backup of the Keychain credentials.
+
+```mermaid
+graph TD
+    subgraph Profiles [~/.claude-profiles/]
+        Default[default/]
+        Work[work/]
+        Personal[personal/]
+    end
+    
+    Work -->|.credentials.json| Backup[Keychain Backup]
+    Keychain[macOS Keychain] <-->|Sync| Active[Active Credentials]
+```
+
+### Directory Structure
+
+```text
 ~/.claude-profiles/
 ├── default/
 │   ├── .profile-metadata.json
-│   └── .credentials.json          ← Keychain backup
+│   └── .credentials.json          ← 🔐 Keychain Backup
 ├── work/
-│   ├── .profile-metadata.json
 │   └── .credentials.json
 └── personal/
-    ├── .profile-metadata.json
     └── .credentials.json
+```
 
-macOS Keychain
-└── Claude Code-credentials        ← Currently active credentials
-``;
+---
 
-## Core Workflows
+## 🔄 Core Workflows
 
-### 1. switch (Profile Transition)
+### 1. Switch Profile
 
-**Scenario:** Current profile is default (active) → Target profile is work.
+**Target:** `default` (active) ➔ `work`
 
-1. **Read** current credentials from Keychain via:
-   security find-generic-password -s "..." -w
-2. **Backup** the retrieved credentials to default/.credentials.json.
-3. **Swap** the ~/.claude symbolic link to point to the work/ directory.
-   ~/.claude -> ~/.claude-profiles/work
-4. **Restore** credentials:
-   - **If work/.credentials.json exists**: Restore it to the Keychain.
-   - **If it does not exist**: Clear the Keychain (unauthenticated state).
+1.  **📥 Read**: Fetch current credentials from Keychain (`security find-generic-password`).
+2.  **💾 Backup**: Save credentials to `default/.credentials.json`.
+3.  **🔗 Swap**: Update `~/.claude` symlink to point to `work/`.
+4.  **📤 Restore**:
+    *   If `work/.credentials.json` exists ➔ Load into Keychain.
+    *   If missing ➔ Clear Keychain (require login).
 
-**Result:** work profile activated + work account authenticated.
+> **Result:** `work` profile active + `work` account authenticated.
 
-### 2. login (New Account Login)
+### 2. Login (New Account)
 
-**Command:** claude-profile login work
+**Command:** `claude-profile login work`
 
-1. **Verify** existence of the "work" profile (auto-create if missing).
-2. **Execute** switch("work"):
-   (Backup current → Swap link → Attempt restoration).
-3. **Delete** current Keychain credentials to force a clean slate:
-   security delete-generic-password -s "..."
-4. **Instruct** the user to run claude.
+1.  **✅ Verify**: Check if "work" profile exists (create if needed).
+2.  **🔄 Switch**: Perform standard switch (Backup current ➔ Swap).
+3.  **🧹 Clear**: Delete current Keychain credentials (`security delete-generic-password`).
+4.  **👋 Handover**: User runs `claude` to start OAuth flow.
 
-**Result:** work profile active in an unauthenticated state. Once the user completes the OAuth flow via claude, the new credentials are saved to the Keychain.
+> **Result:** `work` profile active but **unauthenticated**. New credentials will be saved to Keychain after user logs in.
 
-### 3. logout (Logout)
+### 3. Logout
 
-**Command:** claude-profile logout
+**Command:** `claude-profile logout`
 
-1. **Delete** credentials from macOS Keychain.
-2. **Remove** .credentials.json from the current profile directory.
+1.  **🗑️ Delete**: Remove credentials from Keychain.
+2.  **🔥 Purge**: Delete `.credentials.json` from profile directory.
 
-**Result:** Current profile enters an unauthenticated state (both Keychain and file deleted).
+---
 
-## Keychain Interaction
+## 🛠️ Keychain Interaction
 
-Interaction with the Keychain is handled via the macOS security CLI.
+We use the macOS `security` CLI for strict isolation.
 
 | Action | Command |
 | :--- | :--- |
-| **Read** | security find-generic-password -s "Claude Code-credentials" -a <username> -w |
-| **Write** | security add-generic-password -s "Claude Code-credentials" -a <username> -w <json> -U |
-| **Delete** | security delete-generic-password -s "Claude Code-credentials" -a <username> |
+| **Read** 📥 | `security find-generic-password -s "Claude Code-credentials" -w` |
+| **Write** 📤 | `security add-generic-password -s "..." -w <json> -U` |
+| **Delete** 🗑️ | `security delete-generic-password -s "..."` |
 
-* **Service Name**: Claude Code-credentials (Fixed value used by Claude Code).
-* **Account Name**: OS Username (os.userInfo().username).
-* **Value**: JSON string containing OAuth tokens, subscription type, etc.
+-   **Service**: `Claude Code-credentials` (Fixed)
+-   **Account**: OS Username
+-   **Value**: JSON string (OAuth tokens, subscription info)
 
-## Authentication Status Display
+---
 
-The list and status commands display the authentication status for each profile:
+## 📊 Status Display
 
-``;text
+The CLI clearly indicates the authentication state of each persona:
+
+```text
 Claude Code Profiles:
 
 ▸ work (active) — pro ✓ — last used just now
   personal — authenticated ✓ — last used 2h ago
   test — not authenticated — last used 5d ago
+```
 
-  3 profile(s) total
-``;
-
-| Profile Type | Credential Source | Reason |
+| State | Source | Meaning |
 | :--- | :--- | :--- |
-| **Active Profile** | Keychain | Reflects the actual real-time authentication state. |
-| **Inactive Profiles**| .credentials.json| Reflects the state backed up during the last switch. |
+| **Active** | 🔑 Keychain | Real-time system authentication state. |
+| **Inactive** | 📄 `.credentials.json` | Snapshot from last usage. |
 
-## File Security
+---
 
-| File/Folder | Permission | Description |
+## 🛡️ File Security
+
+| File/Folder | Permission | Access |
 | :--- | :--- | :--- |
-| .credentials.json | 0o600 | Read/Write restricted to Owner only. |
-| .profile-metadata.json | 0o600 | Read/Write restricted to Owner only. |
-| **Profile Directory** | 0o700 | Access restricted to Owner only. |
+| `.credentials.json` | `0o600` | Owner Read/Write Only |
+| Profile Directory | `0o700` | Owner Access Only |
 
-## Platform Support
+---
 
-| Feature | macOS | Linux / Windows |
+## 💻 Platform Support
+
+| Feature | macOS  | Linux / Windows 🐧 |
 | :--- | :---: | :---: |
-| Profile Switching (Symlink) | Supported | Supported |
-| Credential Backup (Keychain) | Supported | Not Supported (Ignored) |
-| login / logout | Supported | Not Supported (Returns Error) |
+| **Profile Switching** | ✅ | ✅ |
+| **Credential Sync** | ✅ | ❌ (Ignored) |
+| **Login / Logout** | ✅ | ❌ (Error) |
 
-The system uses isKeychainAvailable() to verify process.platform === 'darwin'. On non-macOS environments, Keychain operations are bypassed, while profile switching via symlinks remains functional.
+> **Note:** Process detects `darwin` platform. On non-macOS, Keychain logic is bypassed while directory switching remains functional.
 
-## Sequence Diagram: switch
+---
+
+## 📈 Sequence Diagram
+
+Summary of the `switch` command flow:
 
 ```mermaid
-User          CLI            Manager         Keychain        FileSystem
- │             │               │               │               │
- │ switch work │               │               │               │
- │────────────>│               │               │               │
- │             │ switch(work)  │               │               │
- │             │──────────────>│               │               │
- │             │               │ read creds    │               │
- │             │               │──────────────>│               │
- │             │               │  json string  │               │
- │             │               │<──────────────│               │
- │             │               │               │ save to       │
- │             │               │               │ default/      │
- │             │               │──────────────────────────────>│
- │             │               │               │               │
- │             │               │ swap symlink  │               │
- │             │               │──────────────────────────────>│
- │             │               │               │               │
- │             │               │               │ read work/    │
- │             │               │               │ .credentials  │
- │             │               │<──────────────────────────────│
- │             │               │ write creds   │               │
- │             │               │──────────────>│               │
- │             │               │      done     │               │
- │             │<──────────────│               │               │
- │  ✓ Switched │               │               │               │
- │<────────────│               │               │               │
+sequenceDiagram
+    participant User
+    participant CLI
+    participant Manager
+    participant Keychain
+    participant FileSystem
+
+    User->>CLI: switch work
+    CLI->>Manager: switch(work)
+    
+    Manager->>Keychain: read creds
+    Keychain-->>Manager: json string (current)
+    
+    Manager->>FileSystem: save to default/
+    
+    Manager->>FileSystem: swap symlink
+    
+    FileSystem-->>Manager: read work/.credentials
+    
+    Manager->>Keychain: write creds
+    
+    Manager-->>CLI: done
+    CLI-->>User: ✓ Switched
 ```
